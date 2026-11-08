@@ -1,0 +1,44 @@
+services:
+  db:
+    # PostgreSQL 16 with the pgvector extension preinstalled (needed for the RAG pipeline).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recipe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recipe}
+      POSTGRES_DB: ${POSTGRES_DB:-recipe_planner}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs once on first start: enables the `vector` extension.
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Host port only; containers always reach the database at db:5432.
+      - "${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-recipe}:${POSTGRES_PASSWORD:-recipe}@db:5432/${POSTGRES_DB:-recipe_planner}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:
