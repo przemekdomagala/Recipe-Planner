@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import ConnectionPoolEntry
 
+import app.models  # noqa: F401  (registers the models on Base.metadata for create_all)
 from app.core.config import settings
 from app.db.base import Base
 
@@ -36,9 +37,6 @@ async def init_db() -> None:
     This is a bootstrap convenience; a migration tool such as Alembic should replace
     `create_all` once the schema starts to evolve.
     """
-    # Importing the models registers them on `Base.metadata`.
-    import app.models  # noqa: F401
-
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)

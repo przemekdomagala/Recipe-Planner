@@ -1,8 +1,8 @@
 """Shared fixtures.
 
-By default the tests run against an in-memory SQLite database (no services required). Set
-`TEST_DATABASE_URL` (e.g. `postgresql+asyncpg://recipe:recipe@localhost:5433/recipe_test`) to run
-the very same suite against a real PostgreSQL + pgvector instance.
+By default the tests run against an in-memory SQLite database (no services required). 
+Setting the `TEST_DATABASE_URL` environment variable (e.g. `postgresql+asyncpg://recipe:recipe@localhost:5433/recipe_test`) will run
+the tests against a real PostgreSQL + pgvector instance.
 """
 
 import os
