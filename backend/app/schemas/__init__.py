@@ -1,6 +1,7 @@
 """Pydantic request/response schemas for the API."""
 
-from app.schemas.ingredient import IngredientCreate, IngredientRead
+from app.schemas.ingredient import IngredientCreate, IngredientRead, normalize_ingredient_name
+from app.schemas.rag import AskRequest, AskResponse, RagStatus
 from app.schemas.recipe import (
     RecipeCreate,
     RecipeIngredientCreate,
@@ -10,8 +11,11 @@ from app.schemas.recipe import (
 from app.schemas.search import RecipeSearchHit, RecipeSearchRequest, RecipeSearchResponse
 
 __all__ = [
+    "AskRequest",
+    "AskResponse",
     "IngredientCreate",
     "IngredientRead",
+    "RagStatus",
     "RecipeCreate",
     "RecipeIngredientCreate",
     "RecipeIngredientRead",
@@ -19,4 +23,5 @@ __all__ = [
     "RecipeSearchHit",
     "RecipeSearchRequest",
     "RecipeSearchResponse",
+    "normalize_ingredient_name",
 ]

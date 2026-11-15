@@ -28,6 +28,24 @@ async def get_recipe(db: AsyncSession, recipe_id: int) -> Recipe | None:
     return result.one_or_none()
 
 
+async def get_recipe_by_external_id(
+    db: AsyncSession, source: str, external_id: str
+) -> Recipe | None:
+    """Return the recipe imported from `source` with `external_id`, or `None`.
+
+    Args:
+        db: Database session.
+        source: Source name, e.g. "themealdb".
+        external_id: Identifier of the recipe within the source.
+    """
+    result = await db.scalars(
+        select(Recipe)
+        .where(Recipe.source == source, Recipe.external_id == external_id)
+        .options(_WITH_INGREDIENTS)
+    )
+    return result.one_or_none()
+
+
 async def get_recipes(db: AsyncSession, *, skip: int = 0, limit: int = 100) -> Sequence[Recipe]:
     """Return recipes ordered by id, with their ingredients eagerly loaded.
 
@@ -68,9 +86,12 @@ async def create_recipe(db: AsyncSession, data: RecipeCreate) -> Recipe:
         instructions=data.instructions,
         ingredients=[
             RecipeIngredient(
-                ingredient_id=item.ingredient_id, quantity=item.quantity, unit=item.unit
+                ingredient_id=item.ingredient_id,
+                position=position,
+                quantity=item.quantity,
+                unit=item.unit,
             )
-            for item in data.ingredients
+            for position, item in enumerate(data.ingredients)
         ],
     )
     db.add(recipe)

@@ -12,13 +12,13 @@ dependencies = [
     "pgvector>=0.3",
     "numpy>=1.26",
     "pydantic-settings>=2.4",
+    "httpx>=0.27",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.2",
     "pytest-asyncio>=0.24",
-    "httpx>=0.27",
     "aiosqlite>=0.20",
     "ruff>=0.6",
     "mypy>=1.11",
@@ -34,6 +34,9 @@ entrypoint = "app.main:app"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+markers = [
+    "postgres: needs PostgreSQL + pgvector (set TEST_DATABASE_URL); skipped on SQLite",
+]
 
 [tool.ruff]
 line-length = 100

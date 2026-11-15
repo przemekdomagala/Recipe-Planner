@@ -1,9 +1,11 @@
-"""Tests for the recipe endpoints and the embedding column."""
+"""Tests for the recipe CRUD endpoints and indexing on creation."""
 
-from app.models import Recipe
+from app.models import RecipeChunk
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from tests.fakes import FakeEmbedder
 
 
 async def _create_ingredient(client: AsyncClient, name: str) -> int:
@@ -15,7 +17,7 @@ async def _create_ingredient(client: AsyncClient, name: str) -> int:
 
 
 async def test_create_recipe_with_ingredients(client: AsyncClient) -> None:
-    """A recipe is created with its ingredient lines; the embedding is not exposed."""
+    """A recipe is created with its ingredient lines in the given order."""
     pasta_id = await _create_ingredient(client, "pasta")
     garlic_id = await _create_ingredient(client, "garlic")
 
@@ -34,10 +36,9 @@ async def test_create_recipe_with_ingredients(client: AsyncClient) -> None:
     assert response.status_code == 201
     body = response.json()
     assert body["title"] == "Aglio e olio"
-    assert "embedding" not in body
-    assert {
+    assert [
         (item["ingredient"]["name"], item["quantity"], item["unit"]) for item in body["ingredients"]
-    } == {("pasta", 200.0, "g"), ("garlic", 3.0, "cloves")}
+    ] == [("pasta", 200.0, "g"), ("garlic", 3.0, "cloves")]
 
 
 async def test_create_recipe_without_ingredients(client: AsyncClient) -> None:
@@ -119,21 +120,37 @@ async def test_get_recipe_by_id(client: AsyncClient) -> None:
     assert missing.status_code == 404
 
 
-async def test_recipe_embedding_column_is_nullable_and_storable(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    """The vector column exists, defaults to NULL, and can hold an embedding."""
+async def test_created_recipe_has_user_source_defaults(client: AsyncClient) -> None:
+    """Recipes created through the API are marked as user recipes without metadata."""
+    body = (
+        await client.post("/api/recipes", json={"title": "Soup", "instructions": "Simmer."})
+    ).json()
+
+    assert body["source"] == "user"
+    assert body["external_id"] is None
+    assert body["tags"] == []
+    assert body["category"] is None
+
+
+async def test_create_recipe_indexes_it(client: AsyncClient, db_session: AsyncSession) -> None:
+    """A new recipe is chunked and embedded right away."""
     created = (
         await client.post("/api/recipes", json={"title": "Soup", "instructions": "Simmer."})
     ).json()
 
-    recipe = (await db_session.scalars(select(Recipe).where(Recipe.id == created["id"]))).one()
-    assert recipe.embedding is None
+    chunks = await db_session.scalars(
+        select(RecipeChunk).where(RecipeChunk.recipe_id == created["id"])
+    )
+    assert [chunk.kind for chunk in chunks] == ["summary", "instructions"]
 
-    recipe.embedding = [0.1] * 1536
-    await db_session.commit()
-    db_session.expire_all()
 
-    reloaded = (await db_session.scalars(select(Recipe).where(Recipe.id == created["id"]))).one()
-    assert reloaded.embedding is not None
-    assert len(reloaded.embedding) == 1536
+async def test_create_recipe_succeeds_when_embedder_is_down(
+    client: AsyncClient, db_session: AsyncSession, fake_embedder: FakeEmbedder
+) -> None:
+    """Indexing is best-effort: the recipe is created but has no chunks."""
+    fake_embedder.fail = True
+
+    response = await client.post("/api/recipes", json={"title": "Soup", "instructions": "Simmer."})
+
+    assert response.status_code == 201
+    assert await db_session.scalar(select(func.count()).select_from(RecipeChunk)) == 0

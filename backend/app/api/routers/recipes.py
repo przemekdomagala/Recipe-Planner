@@ -1,31 +1,43 @@
-"""Recipe endpoints (`/api/recipes`), including the search placeholder."""
+"""Recipe endpoints (`/api/recipes`), including semantic search."""
 
+import logging
 from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app import crud
-from app.api.deps import DbSession
-from app.core.exceptions import IngredientsNotFoundError
+from app.api.deps import DbSession, EmbedderDep
+from app.api.mappers import to_search_hit
+from app.core.exceptions import IngredientsNotFoundError, LLMServiceError
 from app.models import Recipe
+from app.rag import index_recipe, retrieve_recipes
 from app.schemas import RecipeCreate, RecipeRead, RecipeSearchRequest, RecipeSearchResponse
-from app.services.recipe_search import search_recipes
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 
 @router.post("", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
-async def create_recipe(payload: RecipeCreate, db: DbSession) -> Recipe:
-    """Create a recipe together with its ingredient links.
+async def create_recipe(payload: RecipeCreate, db: DbSession, embedder: EmbedderDep) -> Recipe:
+    """Create a recipe together with its ingredient links and index it for search.
+
+    Indexing is best-effort: if the embedding service is down, the recipe is still created
+    and can be indexed later with `python -m app.cli reindex`.
 
     Raises:
         HTTPException: 422 if any referenced ingredient id does not exist.
     """
     try:
-        return await crud.recipe.create_recipe(db, payload)
+        recipe = await crud.recipe.create_recipe(db, payload)
     except IngredientsNotFoundError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        await index_recipe(db, recipe, embedder)
+    except LLMServiceError as exc:
+        logger.warning("Recipe %s was created but not indexed: %s", recipe.id, exc)
+    return recipe
 
 
 @router.get("", response_model=list[RecipeRead])
@@ -39,9 +51,28 @@ async def list_recipes(
 
 
 @router.post("/search", response_model=RecipeSearchResponse)
-async def search(payload: RecipeSearchRequest, db: DbSession) -> RecipeSearchResponse:
-    """Placeholder for RAG vector search; currently returns a mock response."""
-    return await search_recipes(db, payload)
+async def search(
+    payload: RecipeSearchRequest, db: DbSession, embedder: EmbedderDep
+) -> RecipeSearchResponse:
+    """Find the recipes semantically closest to a natural-language query.
+
+    Raises:
+        HTTPException: 503 if the embedding service is unavailable.
+    """
+    try:
+        hits = await retrieve_recipes(
+            db,
+            embedder,
+            payload.query,
+            limit=payload.limit,
+            category=payload.category,
+            area=payload.area,
+        )
+    except LLMServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    return RecipeSearchResponse(query=payload.query, results=[to_search_hit(hit) for hit in hits])
 
 
 @router.get("/{recipe_id}", response_model=RecipeRead)

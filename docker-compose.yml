@@ -1,3 +1,7 @@
+# Fixed project name, so volume names (e.g. recipe-planner_pgdata) don't depend on the clone's
+# directory name; `make reset` relies on it.
+name: recipe-planner
+
 services:
   db:
     # PostgreSQL 16 with the pgvector extension preinstalled (needed for the RAG pipeline).
@@ -19,14 +23,53 @@ services:
       timeout: 5s
       retries: 10
 
+  ollama:
+    # Local LLM server (embeddings + chat). Runs on CPU; see docker-compose.gpu.yml for NVIDIA GPUs.
+    image: ollama/ollama:latest
+    volumes:
+      # Pulled models survive restarts; `make reset` does not delete them.
+      - ollama:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama-pull:
+    # One-shot job: pulls the configured models unless they are already present, so restarts
+    # work offline. The first run downloads a few GB.
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: ollama:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:3b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        for model in "$$OLLAMA_EMBEDDING_MODEL" "$$OLLAMA_CHAT_MODEL"; do
+        ollama show "$$model" >/dev/null 2>&1 || ollama pull "$$model" || exit 1;
+        done
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-recipe}:${POSTGRES_PASSWORD:-recipe}@db:5432/${POSTGRES_DB:-recipe_planner}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:3b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
     depends_on:
       db:
         condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
 
@@ -42,3 +85,4 @@ services:
 
 volumes:
   pgdata:
+  ollama:

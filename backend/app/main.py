@@ -10,13 +10,19 @@ from app.api.router import api_router
 from app.api.routers import health
 from app.core.config import settings
 from app.db.session import init_db
+from app.llm import ollama_client
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Bootstrap the database (pgvector extension + tables) before serving requests."""
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Bootstrap the database and open the Ollama client for the app's lifetime.
+
+    The client is stored on `app.state.ollama` and read by `app.api.deps.get_ollama`.
+    """
     await init_db()
-    yield
+    async with ollama_client(settings) as ollama:
+        app.state.ollama = ollama
+        yield
 
 
 def create_app() -> FastAPI:

@@ -18,6 +18,9 @@ export function RecipeList({ recipes }: Props) {
           {recipes.map((recipe) => (
             <li key={recipe.id}>
               <h3>{recipe.title}</h3>
+              {(recipe.category || recipe.area) && (
+                <p className="muted">{[recipe.category, recipe.area].filter(Boolean).join(' · ')}</p>
+              )}
               {recipe.ingredients.length > 0 && (
                 <p className="muted">
                   {recipe.ingredients.map((item) => item.ingredient.name).join(', ')}

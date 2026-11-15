@@ -5,7 +5,8 @@ picked up by `create_all`).
 """
 
 from app.models.ingredient import Ingredient
-from app.models.recipe import Recipe
+from app.models.recipe import USER_SOURCE, Recipe
+from app.models.recipe_chunk import RecipeChunk
 from app.models.recipe_ingredient import RecipeIngredient
 
-__all__ = ["Ingredient", "Recipe", "RecipeIngredient"]
+__all__ = ["USER_SOURCE", "Ingredient", "Recipe", "RecipeChunk", "RecipeIngredient"]

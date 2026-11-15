@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listIngredients, listRecipes, type Ingredient, type Recipe } from './api'
+import { AssistantPanel } from './components/AssistantPanel'
 import { IngredientForm } from './components/IngredientForm'
 import { RecipeForm } from './components/RecipeForm'
 import { RecipeList } from './components/RecipeList'
 
-/** Root component: loads ingredients and recipes and renders the forms and the list. */
+/** Root component: the assistant, plus the ingredient/recipe forms and the recipe list. */
 function App() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -35,6 +36,7 @@ function App() {
     <main>
       <h1>Recipe Planner</h1>
       {error && <p className="error">Backend error: {error}</p>}
+      <AssistantPanel />
       <div className="grid">
         <div>
           <IngredientForm ingredients={ingredients} onCreated={refresh} />

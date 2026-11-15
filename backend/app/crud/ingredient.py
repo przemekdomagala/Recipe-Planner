@@ -1,6 +1,6 @@
 """Database access for ingredients."""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -48,3 +48,28 @@ async def create_ingredient(db: AsyncSession, data: IngredientCreate) -> Ingredi
         await db.rollback()
         raise DuplicateIngredientError(data.name) from exc
     return ingredient
+
+
+async def get_or_create_ingredients(
+    db: AsyncSession, names: Iterable[str]
+) -> dict[str, Ingredient]:
+    """Return ingredients by name, inserting the missing ones (flushed, not committed).
+
+    Args:
+        db: Database session; the caller commits.
+        names: Already normalized ingredient names; duplicates are fine.
+
+    Returns:
+        Mapping of each requested name to its persisted ingredient.
+    """
+    wanted = set(names)
+    if not wanted:
+        return {}
+    existing = await db.scalars(select(Ingredient).where(Ingredient.name.in_(wanted)))
+    by_name = {ingredient.name: ingredient for ingredient in existing}
+    missing = [Ingredient(name=name) for name in sorted(wanted - by_name.keys())]
+    if missing:
+        db.add_all(missing)
+        await db.flush()
+        by_name.update((ingredient.name, ingredient) for ingredient in missing)
+    return by_name

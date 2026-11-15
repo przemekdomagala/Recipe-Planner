@@ -1,4 +1,4 @@
-"""Domain exceptions raised by the crud layer and mapped to HTTP errors by routers."""
+"""Domain exceptions raised below the API layer and mapped to HTTP errors by routers."""
 
 
 class DuplicateIngredientError(Exception):
@@ -25,3 +25,11 @@ class IngredientsNotFoundError(Exception):
         """
         super().__init__(f"Unknown ingredient ids: {missing_ids}")
         self.missing_ids = missing_ids
+
+
+class LLMServiceError(Exception):
+    """Raised when the language model service is unreachable or returns an unusable reply."""
+
+
+class RecipeSourceError(Exception):
+    """Raised when an external recipe source (e.g. TheMealDB) cannot be read."""

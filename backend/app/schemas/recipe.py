@@ -49,14 +49,22 @@ class RecipeIngredientRead(BaseModel):
     ingredient: IngredientRead
     quantity: float | None
     unit: str | None
+    measure: str | None = Field(description="Original free-text amount of imported recipes")
 
 
 class RecipeRead(BaseModel):
-    """Public representation of a recipe. The raw embedding is intentionally not exposed."""
+    """Public representation of a recipe (its embedded chunks are not exposed)."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     title: str
     instructions: str
+    source: str = Field(description='"user" or the external source, e.g. "themealdb"')
+    external_id: str | None
+    category: str | None
+    area: str | None
+    tags: list[str]
+    image_url: str | None
+    source_url: str | None
     ingredients: list[RecipeIngredientRead]
