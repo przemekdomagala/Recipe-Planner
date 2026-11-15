@@ -18,6 +18,9 @@ class RecipeCreate(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     instructions: str = Field(min_length=1)
+    category: str | None = Field(default=None, max_length=64)
+    area: str | None = Field(default=None, max_length=64, description="Cuisine, e.g. Italian")
+    tags: list[str] = Field(default_factory=list)
     ingredients: list[RecipeIngredientCreate] = Field(default_factory=list)
 
     @field_validator("title", "instructions")
@@ -28,6 +31,18 @@ class RecipeCreate(BaseModel):
         if not stripped:
             raise ValueError("must not be blank")
         return stripped
+
+    @field_validator("category", "area")
+    @classmethod
+    def blank_to_none(cls, value: str | None) -> str | None:
+        """Strip optional labels and treat blank ones as missing."""
+        return (value or "").strip() or None
+
+    @field_validator("tags")
+    @classmethod
+    def clean_tags(cls, value: list[str]) -> list[str]:
+        """Strip tags and drop blanks and duplicates, keeping the original order."""
+        return list(dict.fromkeys(tag.strip() for tag in value if tag.strip()))
 
     @field_validator("ingredients")
     @classmethod
@@ -52,11 +67,17 @@ class RecipeIngredientRead(BaseModel):
 
 
 class RecipeRead(BaseModel):
-    """Public representation of a recipe. The raw embedding is intentionally not exposed."""
+    """Public representation of a recipe. Chunks and embeddings are intentionally not exposed."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     title: str
     instructions: str
+    source: str = Field(description='"user" or the dataset it was imported from')
+    category: str | None
+    area: str | None
+    tags: list[str]
+    thumbnail_url: str | None
+    source_url: str | None
     ingredients: list[RecipeIngredientRead]

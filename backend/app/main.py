@@ -6,17 +6,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.errors import register_exception_handlers
 from app.api.router import api_router
 from app.api.routers import health
+from app.clients.ollama import OllamaClient
 from app.core.config import settings
 from app.db.session import init_db
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Bootstrap the database (pgvector extension + tables) before serving requests."""
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Bootstrap the database and open the LLM clients for the app's lifetime."""
     await init_db()
-    yield
+    async with OllamaClient.for_chat() as chat, OllamaClient.for_embeddings() as embeddings:
+        app.state.chat_client = chat
+        app.state.embedding_client = embeddings
+        yield
 
 
 def create_app() -> FastAPI:
@@ -32,6 +37,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(api_router)
     return app

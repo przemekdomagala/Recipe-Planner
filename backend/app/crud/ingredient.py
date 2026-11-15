@@ -1,6 +1,6 @@
 """Database access for ingredients."""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DuplicateIngredientError
 from app.models import Ingredient
-from app.schemas import IngredientCreate
+from app.schemas import IngredientCreate, normalize_ingredient_name
 
 
 async def get_ingredients(
@@ -48,3 +48,28 @@ async def create_ingredient(db: AsyncSession, data: IngredientCreate) -> Ingredi
         await db.rollback()
         raise DuplicateIngredientError(data.name) from exc
     return ingredient
+
+
+async def get_or_create_ingredients(
+    db: AsyncSession, names: Iterable[str]
+) -> dict[str, Ingredient]:
+    """Return ingredients by name, inserting the missing ones (without committing).
+
+    Args:
+        db: Database session.
+        names: Ingredient names; they are normalized like `IngredientCreate` does.
+
+    Returns:
+        Mapping from normalized name to ingredient (new ones are flushed, so have ids).
+    """
+    wanted = {normalize_ingredient_name(name) for name in names} - {""}
+    if not wanted:
+        return {}
+    existing = await db.scalars(select(Ingredient).where(Ingredient.name.in_(wanted)))
+    by_name = {ingredient.name: ingredient for ingredient in existing}
+    missing = [Ingredient(name=name) for name in sorted(wanted - by_name.keys())]
+    if missing:
+        db.add_all(missing)
+        await db.flush()
+        by_name.update((ingredient.name, ingredient) for ingredient in missing)
+    return by_name

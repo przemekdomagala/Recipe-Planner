@@ -22,6 +22,14 @@ export interface Recipe {
   id: number
   title: string
   instructions: string
+  /** `"user"` or the dataset the recipe was imported from, e.g. `"themealdb"`. */
+  source: string
+  category: string | null
+  /** Cuisine, e.g. `"Italian"`. */
+  area: string | null
+  tags: string[]
+  thumbnail_url: string | null
+  source_url: string | null
   ingredients: RecipeIngredient[]
 }
 
@@ -77,3 +85,62 @@ export const listRecipes = (): Promise<Recipe[]> => request('/api/recipes')
 /** Create a recipe with links to existing ingredients. */
 export const createRecipe = (recipe: NewRecipe): Promise<Recipe> =>
   request('/api/recipes', { method: 'POST', body: JSON.stringify(recipe) })
+
+/** Optional metadata filters for search and the assistant (`RecipeSearchFilters`). */
+export interface SearchFilters {
+  category?: string | null
+  area?: string | null
+}
+
+/** A recipe chunk that matched a query (`MatchedChunk`). */
+export interface MatchedChunk {
+  kind: 'overview' | 'instructions'
+  content: string
+  /** Cosine similarity to the query (higher is better). */
+  score: number
+}
+
+/** One recipe found by semantic search (`RecipeSearchHit`). */
+export interface SearchHit {
+  recipe_id: number
+  title: string
+  category: string | null
+  area: string | null
+  thumbnail_url: string | null
+  /** Similarity of the best-matching chunk. */
+  score: number
+  matches: MatchedChunk[]
+}
+
+/** Semantic search results (`RecipeSearchResponse`). */
+export interface SearchResponse {
+  query: string
+  results: SearchHit[]
+}
+
+/** The assistant's answer and the recipes it was grounded on (`AskResponse`). */
+export interface AskResponse {
+  question: string
+  answer: string
+  /** Chat model that wrote the answer; `null` when no recipe matched and no LLM ran. */
+  model: string | null
+  sources: SearchHit[]
+}
+
+/** Semantic recipe search over the knowledge base. */
+export const searchRecipes = (
+  query: string,
+  limit = 6,
+  filters: SearchFilters = {},
+): Promise<SearchResponse> =>
+  request('/api/recipes/search', {
+    method: 'POST',
+    body: JSON.stringify({ query, limit, filters }),
+  })
+
+/** Ask the RAG assistant a cooking question. */
+export const askAssistant = (
+  question: string,
+  filters: SearchFilters = {},
+): Promise<AskResponse> =>
+  request('/api/assistant/ask', { method: 'POST', body: JSON.stringify({ question, filters }) })
