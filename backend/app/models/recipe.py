@@ -1,3 +1,5 @@
+"""Recipe ORM model, including the pgvector embedding column."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -14,6 +16,8 @@ if TYPE_CHECKING:
 
 
 class Recipe(Base):
+    """A recipe with free-text instructions and a list of ingredient links."""
+
     __tablename__ = "recipes"
 
     id: Mapped[int] = mapped_column(primary_key=True)

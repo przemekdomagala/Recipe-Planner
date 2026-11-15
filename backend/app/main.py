@@ -1,3 +1,5 @@
+"""FastAPI application factory and the ASGI `app` (entrypoint `app.main:app`)."""
+
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -12,11 +14,16 @@ from app.db.session import init_db
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Bootstrap the database (pgvector extension + tables) before serving requests."""
     await init_db()
     yield
 
 
 def create_app() -> FastAPI:
+    """Build and configure the FastAPI application.
+
+    Tests call this to get a fresh app whose dependencies can be overridden.
+    """
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,

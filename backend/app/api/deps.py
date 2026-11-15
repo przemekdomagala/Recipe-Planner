@@ -1,3 +1,5 @@
+"""Reusable FastAPI dependencies for the routers."""
+
 from typing import Annotated
 
 from fastapi import Depends

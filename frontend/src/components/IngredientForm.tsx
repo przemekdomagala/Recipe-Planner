@@ -1,16 +1,21 @@
 import { useState, type SubmitEventHandler } from 'react'
 import { createIngredient, type Ingredient } from '../api'
 
+/** Props for {@link IngredientForm}. */
 interface Props {
+  /** Existing ingredients, shown as tags below the form. */
   ingredients: Ingredient[]
+  /** Called after an ingredient was created, so the parent can refresh. */
   onCreated: () => void
 }
 
+/** Form for adding an ingredient, plus the list of existing ingredients. */
 export function IngredientForm({ ingredients, onCreated }: Props) {
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  /** Create the ingredient and reset the form, or show the backend error. */
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     setSubmitting(true)

@@ -1,7 +1,11 @@
+"""Ingredient request/response schemas."""
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class IngredientCreate(BaseModel):
+    """Payload for creating an ingredient."""
+
     name: str = Field(min_length=1, max_length=120)
 
     @field_validator("name")
@@ -15,6 +19,8 @@ class IngredientCreate(BaseModel):
 
 
 class IngredientRead(BaseModel):
+    """Ingredient as returned by the API."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int

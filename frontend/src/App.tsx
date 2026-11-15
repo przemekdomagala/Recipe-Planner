@@ -4,11 +4,13 @@ import { IngredientForm } from './components/IngredientForm'
 import { RecipeForm } from './components/RecipeForm'
 import { RecipeList } from './components/RecipeList'
 
+/** Root component: loads ingredients and recipes and renders the forms and the list. */
 function App() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  /** Reload ingredients and recipes from the backend, surfacing any error. */
   const refresh = useCallback(async () => {
     try {
       const [loadedIngredients, loadedRecipes] = await Promise.all([

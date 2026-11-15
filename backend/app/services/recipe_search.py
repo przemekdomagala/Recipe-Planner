@@ -1,3 +1,5 @@
+"""Recipe search service: home of the future RAG retrieval pipeline."""
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas import RecipeSearchHit, RecipeSearchRequest, RecipeSearchResponse
