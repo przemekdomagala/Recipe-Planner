@@ -118,3 +118,65 @@ button:disabled {
 .error {
   color: #b42318;
 }
+
+button.secondary {
+  background: white;
+  color: #2f7d4f;
+}
+
+.assistant {
+  background: white;
+  border: 1px solid #e1e5ea;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.assistant h2 {
+  margin-top: 0;
+}
+
+.answer > p:first-child {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.hits {
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.hit {
+  display: flex;
+  gap: 0.75rem;
+  border: 1px solid #e1e5ea;
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.hit img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.hit h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1rem;
+}
+
+.hit p {
+  margin: 0.1rem 0;
+  font-size: 0.875rem;
+}
+
+.snippet {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

@@ -1,9 +1,16 @@
-"""Tests for the recipe endpoints and the embedding column."""
+"""Tests for the recipe endpoints, including indexing on create."""
 
-from app.models import Recipe
+from collections.abc import Sequence
+
+from app.core.config import settings
+from app.core.exceptions import LLMUnavailableError
+from app.models import RecipeChunk
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
+
+from tests.fakes import FakeEmbedder
 
 
 async def _create_ingredient(client: AsyncClient, name: str) -> int:
@@ -119,21 +126,55 @@ async def test_get_recipe_by_id(client: AsyncClient) -> None:
     assert missing.status_code == 404
 
 
-async def test_recipe_embedding_column_is_nullable_and_storable(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    """The vector column exists, defaults to NULL, and can hold an embedding."""
+async def test_create_recipe_stores_metadata(client: AsyncClient) -> None:
+    """Category, cuisine and tags are cleaned and returned; source defaults to "user"."""
+    response = await client.post(
+        "/api/recipes",
+        json={
+            "title": "Pho",
+            "instructions": "Simmer broth.",
+            "category": " Soup ",
+            "area": "",
+            "tags": ["noodles", " noodles", "", "spicy"],
+        },
+    )
+
+    body = response.json()
+    assert (body["source"], body["category"], body["area"]) == ("user", "Soup", None)
+    assert body["tags"] == ["noodles", "spicy"]
+
+
+async def test_created_recipe_is_indexed(client: AsyncClient, db_session: AsyncSession) -> None:
+    """Creating a recipe builds its overview and instructions chunks with embeddings."""
     created = (
         await client.post("/api/recipes", json={"title": "Soup", "instructions": "Simmer."})
     ).json()
 
-    recipe = (await db_session.scalars(select(Recipe).where(Recipe.id == created["id"]))).one()
-    assert recipe.embedding is None
+    chunks = (
+        await db_session.scalars(
+            select(RecipeChunk)
+            .where(RecipeChunk.recipe_id == created["id"])
+            .order_by(RecipeChunk.position)
+            .options(undefer(RecipeChunk.embedding))
+        )
+    ).all()
+    assert [chunk.kind for chunk in chunks] == ["overview", "instructions"]
+    assert all(len(chunk.embedding) == settings.embedding_dim for chunk in chunks)
+    assert {chunk.embedding_model for chunk in chunks} == {"fake-embed"}
 
-    recipe.embedding = [0.1] * 1536
-    await db_session.commit()
-    db_session.expire_all()
 
-    reloaded = (await db_session.scalars(select(Recipe).where(Recipe.id == created["id"]))).one()
-    assert reloaded.embedding is not None
-    assert len(reloaded.embedding) == 1536
+async def test_recipe_is_created_even_if_indexing_fails(
+    client: AsyncClient, embedder: FakeEmbedder, db_session: AsyncSession
+) -> None:
+    """An unavailable embedding model doesn't block recipe creation."""
+
+    async def unavailable(texts: Sequence[str]) -> list[list[float]]:
+        """Simulate Ollama being down."""
+        raise LLMUnavailableError("down")
+
+    embedder.embed_documents = unavailable  # type: ignore[method-assign]
+
+    response = await client.post("/api/recipes", json={"title": "Stew", "instructions": "Stew."})
+
+    assert response.status_code == 201
+    assert (await db_session.scalars(select(RecipeChunk))).all() == []

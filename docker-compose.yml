@@ -24,6 +24,14 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-recipe}:${POSTGRES_PASSWORD:-recipe}@db:5432/${POSTGRES_DB:-recipe_planner}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      # The Ollama app on the host; "localhost" inside the container is the container itself.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      LLM_MODEL: ${LLM_MODEL:-qwen3.5:4b}
+      LLM_THINK: ${LLM_THINK:-false}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

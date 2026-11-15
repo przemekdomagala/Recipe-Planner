@@ -11,11 +11,12 @@ from collections.abc import AsyncIterator
 
 import app.models  # noqa: F401  (registers the models on Base.metadata)
 import pytest
+from app.api.deps import get_chat_model, get_embedder
 from app.db.base import Base
-from app.db.session import get_db
+from app.db.session import _register_vector_codec, get_db
 from app.main import create_app
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -23,6 +24,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.pool import StaticPool
+
+from tests.fakes import FakeChatModel, FakeEmbedder
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
@@ -37,6 +40,8 @@ async def engine() -> AsyncIterator[AsyncEngine]:
         )
     else:
         test_engine = create_async_engine(TEST_DATABASE_URL)
+        # Mirror the app engine: the binary pgvector codec changes how vectors are bound.
+        event.listen(test_engine.sync_engine, "connect", _register_vector_codec)
 
     async with test_engine.begin() as conn:
         if test_engine.dialect.name == "postgresql":
@@ -57,8 +62,22 @@ async def db_session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
-    """HTTP client wired to the app, with `get_db` overridden to use the test database."""
+def embedder() -> FakeEmbedder:
+    """Deterministic embedder shared by the app and the test."""
+    return FakeEmbedder()
+
+
+@pytest.fixture
+def chat_model() -> FakeChatModel:
+    """Fake chat model shared by the app and the test."""
+    return FakeChatModel()
+
+
+@pytest.fixture
+async def client(
+    engine: AsyncEngine, embedder: FakeEmbedder, chat_model: FakeChatModel
+) -> AsyncIterator[AsyncClient]:
+    """HTTP client wired to the app, using the test database and the fake models."""
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def override_get_db() -> AsyncIterator[AsyncSession]:
@@ -68,5 +87,7 @@ async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
 
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_embedder] = lambda: embedder
+    app.dependency_overrides[get_chat_model] = lambda: chat_model
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http_client:
         yield http_client

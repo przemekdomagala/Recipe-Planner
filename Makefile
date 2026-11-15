@@ -11,7 +11,7 @@ SP := $(EMPTY) $(EMPTY)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install up up-d down reset logs db dev fe-dev \
+.PHONY: help install up up-d down reset logs db dev fe-dev seed reindex llm-status \
         lint format typecheck test test-pg check fe-lint fe-build clean
 
 help:
@@ -28,6 +28,10 @@ help:
 	$(info Local dev)
 	$(info $(SP)$(SP)dev         backend with auto-reload on :8000 (starts the db container))
 	$(info $(SP)$(SP)fe-dev      frontend Vite dev server on :5173)
+	$(info Knowledge base (needs the Ollama app running))
+	$(info $(SP)$(SP)seed        import + embed all TheMealDB recipes (ARGS="--limit 20" etc.))
+	$(info $(SP)$(SP)reindex     embed recipes with missing/stale chunks (ARGS="--force" for all))
+	$(info $(SP)$(SP)llm-status  check the Ollama connection and models)
 	$(info Backend quality)
 	$(info $(SP)$(SP)lint        ruff check)
 	$(info $(SP)$(SP)format      ruff format + ruff check --fix)
@@ -79,6 +83,17 @@ dev: db
 
 fe-dev:
 	$(FRONTEND) npm run dev
+
+# --- Knowledge base --------------------------------------------------------------------
+
+seed: db
+	$(BACKEND) uv run python -m app.cli ingest-mealdb $(ARGS)
+
+reindex: db
+	$(BACKEND) uv run python -m app.cli reindex $(ARGS)
+
+llm-status:
+	$(BACKEND) uv run python -m app.cli llm-status
 
 # --- Backend quality -------------------------------------------------------------------
 
