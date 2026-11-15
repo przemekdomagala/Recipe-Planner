@@ -1,3 +1,5 @@
+"""Tests for the recipe endpoints and the embedding column."""
+
 from app.models import Recipe
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -5,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def _create_ingredient(client: AsyncClient, name: str) -> int:
+    """Create an ingredient through the API and return its id."""
     response = await client.post("/api/ingredients", json={"name": name})
     assert response.status_code == 201
     ingredient_id: int = response.json()["id"]
@@ -12,6 +15,7 @@ async def _create_ingredient(client: AsyncClient, name: str) -> int:
 
 
 async def test_create_recipe_with_ingredients(client: AsyncClient) -> None:
+    """A recipe is created with its ingredient lines; the embedding is not exposed."""
     pasta_id = await _create_ingredient(client, "pasta")
     garlic_id = await _create_ingredient(client, "garlic")
 
@@ -37,6 +41,7 @@ async def test_create_recipe_with_ingredients(client: AsyncClient) -> None:
 
 
 async def test_create_recipe_without_ingredients(client: AsyncClient) -> None:
+    """Ingredients are optional when creating a recipe."""
     response = await client.post(
         "/api/recipes", json={"title": "Water", "instructions": "Pour into a glass."}
     )
@@ -46,6 +51,7 @@ async def test_create_recipe_without_ingredients(client: AsyncClient) -> None:
 
 
 async def test_create_recipe_unknown_ingredient_returns_422(client: AsyncClient) -> None:
+    """Unknown ingredient ids are reported with 422 and nothing is persisted."""
     response = await client.post(
         "/api/recipes",
         json={"title": "Ghost", "instructions": "Boo.", "ingredients": [{"ingredient_id": 999}]},
@@ -57,6 +63,7 @@ async def test_create_recipe_unknown_ingredient_returns_422(client: AsyncClient)
 
 
 async def test_create_recipe_duplicate_ingredient_returns_422(client: AsyncClient) -> None:
+    """Listing the same ingredient twice fails validation."""
     ingredient_id = await _create_ingredient(client, "salt")
 
     response = await client.post(
@@ -72,12 +79,14 @@ async def test_create_recipe_duplicate_ingredient_returns_422(client: AsyncClien
 
 
 async def test_create_recipe_validates_required_fields(client: AsyncClient) -> None:
+    """An empty title fails validation."""
     response = await client.post("/api/recipes", json={"title": "", "instructions": "x"})
 
     assert response.status_code == 422
 
 
 async def test_list_recipes_empty(client: AsyncClient) -> None:
+    """Listing recipes on an empty database returns an empty list."""
     response = await client.get("/api/recipes")
 
     assert response.status_code == 200
@@ -85,6 +94,7 @@ async def test_list_recipes_empty(client: AsyncClient) -> None:
 
 
 async def test_list_recipes_returns_created_recipes_with_pagination(client: AsyncClient) -> None:
+    """Recipes are listed in creation order and `skip` / `limit` paginate them."""
     for title in ("First", "Second", "Third"):
         await client.post("/api/recipes", json={"title": title, "instructions": "Cook."})
 
@@ -96,6 +106,7 @@ async def test_list_recipes_returns_created_recipes_with_pagination(client: Asyn
 
 
 async def test_get_recipe_by_id(client: AsyncClient) -> None:
+    """An existing recipe is returned by id; an unknown id gives 404."""
     created = (
         await client.post("/api/recipes", json={"title": "Toast", "instructions": "Toast bread."})
     ).json()

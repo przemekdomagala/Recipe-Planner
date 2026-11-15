@@ -1,3 +1,5 @@
+"""Ingredient endpoints (`/api/ingredients`)."""
+
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -14,6 +16,11 @@ router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
 @router.post("", response_model=IngredientRead, status_code=status.HTTP_201_CREATED)
 async def create_ingredient(payload: IngredientCreate, db: DbSession) -> Ingredient:
+    """Create an ingredient.
+
+    Raises:
+        HTTPException: 409 if an ingredient with the same (normalized) name exists.
+    """
     try:
         return await crud.ingredient.create_ingredient(db, payload)
     except DuplicateIngredientError as exc:
@@ -26,4 +33,5 @@ async def list_ingredients(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> Sequence[Ingredient]:
+    """List ingredients alphabetically, paginated with `skip` / `limit`."""
     return await crud.ingredient.get_ingredients(db, skip=skip, limit=limit)

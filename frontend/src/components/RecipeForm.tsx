@@ -1,11 +1,15 @@
 import { useState, type SubmitEventHandler } from 'react'
 import { createRecipe, type Ingredient } from '../api'
 
+/** Props for {@link RecipeForm}. */
 interface Props {
+  /** Ingredients the user can attach to the new recipe. */
   ingredients: Ingredient[]
+  /** Called after a recipe was created, so the parent can refresh. */
   onCreated: () => void
 }
 
+/** Form for creating a recipe and picking its ingredients. */
 export function RecipeForm({ ingredients, onCreated }: Props) {
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState('')
@@ -13,6 +17,7 @@ export function RecipeForm({ ingredients, onCreated }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  /** Add or remove an ingredient id from the selection. */
   const toggle = (id: number) =>
     setSelected((prev) => {
       const next = new Set(prev)
@@ -21,6 +26,7 @@ export function RecipeForm({ ingredients, onCreated }: Props) {
       return next
     })
 
+  /** Create the recipe and reset the form, or show the backend error. */
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     setSubmitting(true)

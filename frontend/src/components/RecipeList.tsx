@@ -1,9 +1,12 @@
 import type { Recipe } from '../api'
 
+/** Props for {@link RecipeList}. */
 interface Props {
+  /** Recipes to display. */
   recipes: Recipe[]
 }
 
+/** Read-only list of recipes with their ingredients and instructions. */
 export function RecipeList({ recipes }: Props) {
   return (
     <section>

@@ -1,0 +1,11 @@
+# Only db/init/ (scripts run on first container start) is tracked.
+
+# Database dumps / backups
+*.dump
+*.backup
+*.sql.gz
+dumps/
+backups/
+
+# Local data directory, if Postgres data is ever bind-mounted here
+data/

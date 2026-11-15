@@ -1,3 +1,5 @@
+"""Async engine, session factory, start-up schema bootstrap and the `get_db` dependency."""
+
 import contextlib
 from collections.abc import AsyncIterator
 

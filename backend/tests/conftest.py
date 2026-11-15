@@ -1,8 +1,9 @@
 """Shared fixtures.
 
-By default the tests run against an in-memory SQLite database (no services required). 
-Setting the `TEST_DATABASE_URL` environment variable (e.g. `postgresql+asyncpg://recipe:recipe@localhost:5433/recipe_test`) will run
-the tests against a real PostgreSQL + pgvector instance.
+By default the tests run against an in-memory SQLite database (no services required).
+Setting the `TEST_DATABASE_URL` environment variable (e.g.
+`postgresql+asyncpg://recipe:recipe@localhost:5433/recipe_test`) runs the tests against a
+real PostgreSQL + pgvector instance.
 """
 
 import os
@@ -28,6 +29,7 @@ TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:me
 
 @pytest.fixture
 async def engine() -> AsyncIterator[AsyncEngine]:
+    """Provide an engine on a freshly created schema, dropped again after the test."""
     if TEST_DATABASE_URL.startswith("sqlite"):
         # StaticPool keeps one shared connection, so the in-memory DB survives across sessions.
         test_engine = create_async_engine(
@@ -48,6 +50,7 @@ async def engine() -> AsyncIterator[AsyncEngine]:
 
 @pytest.fixture
 async def db_session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
+    """Provide a session on the test database for direct ORM access in tests."""
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
@@ -59,6 +62,7 @@ async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def override_get_db() -> AsyncIterator[AsyncSession]:
+        """Yield a session bound to the test engine instead of the app's engine."""
         async with session_factory() as session:
             yield session
 

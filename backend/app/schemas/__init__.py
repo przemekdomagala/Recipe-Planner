@@ -1,3 +1,5 @@
+"""Pydantic request/response schemas for the API."""
+
 from app.schemas.ingredient import IngredientCreate, IngredientRead
 from app.schemas.recipe import (
     RecipeCreate,

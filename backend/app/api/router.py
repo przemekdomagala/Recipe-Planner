@@ -1,3 +1,5 @@
+"""Aggregate router mounting all resource routers under `/api`."""
+
 from fastapi import APIRouter
 
 from app.api.routers import ingredients, recipes
