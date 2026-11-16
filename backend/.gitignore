@@ -5,7 +5,8 @@
 __pycache__/
 *.py[cod]
 
-# Tool caches
+# Tool caches (pytest, ruff and mypy write to .artifacts/, see pyproject.toml)
+.artifacts/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

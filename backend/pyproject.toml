@@ -34,8 +34,10 @@ entrypoint = "app.main:app"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+cache_dir = ".artifacts/pytest_cache"
 
 [tool.ruff]
+cache-dir = ".artifacts/ruff_cache"
 line-length = 100
 target-version = "py312"
 src = ["app", "tests"]
@@ -72,6 +74,7 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["app", "tests"]
+cache_dir = ".artifacts/mypy_cache"
 
 [[tool.mypy.overrides]]
 module = ["pgvector.*"]

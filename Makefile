@@ -136,4 +136,4 @@ fe-build:
 # --- Misc ------------------------------------------------------------------------------
 
 clean:
-	$(PY) "import pathlib, shutil; b = pathlib.Path('backend'); dirs = [p for p in b.rglob('__pycache__') if '.venv' not in p.parts]; dirs += [b / n for n in ('.pytest_cache', '.mypy_cache', '.ruff_cache', 'htmlcov')]; dirs.append(pathlib.Path('frontend/dist')); [shutil.rmtree(d, ignore_errors=True) for d in dirs]; print('Cleaned')"
+	$(PY) "import pathlib, shutil; b = pathlib.Path('backend'); dirs = [p for p in b.rglob('__pycache__') if '.venv' not in p.parts]; dirs += [b / n for n in ('.artifacts', '.pytest_cache', '.mypy_cache', '.ruff_cache', 'htmlcov')]; dirs.append(pathlib.Path('frontend/dist')); [shutil.rmtree(d, ignore_errors=True) for d in dirs]; print('Cleaned')"
