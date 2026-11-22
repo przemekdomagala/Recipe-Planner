@@ -1,5 +1,5 @@
 """Database access functions, grouped by resource."""
 
-from app.crud import chunk, ingredient, recipe
+from app.crud import chunk, fridge, ingredient, profile, recipe
 
-__all__ = ["chunk", "ingredient", "recipe"]
+__all__ = ["chunk", "fridge", "ingredient", "profile", "recipe"]

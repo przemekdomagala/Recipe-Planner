@@ -14,6 +14,19 @@ class DuplicateIngredientError(Exception):
         self.name = name
 
 
+class DuplicateFridgeItemError(Exception):
+    """Raised when adding an ingredient that is already in the fridge."""
+
+    def __init__(self, name: str) -> None:
+        """Store the ingredient name.
+
+        Args:
+            name: The (normalized) ingredient name already in the fridge.
+        """
+        super().__init__(f"'{name}' is already in the fridge; update that item instead")
+        self.name = name
+
+
 class IngredientsNotFoundError(Exception):
     """Raised when a recipe references ingredient ids that don't exist."""
 

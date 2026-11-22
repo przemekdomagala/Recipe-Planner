@@ -1,8 +1,8 @@
 """Database access for recipes and their ingredient links."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -65,6 +65,32 @@ async def get_recipes_by_ids(db: AsyncSession, recipe_ids: Sequence[int]) -> lis
     )
     by_id = {recipe.id: recipe for recipe in result}
     return [by_id[recipe_id] for recipe_id in recipe_ids if recipe_id in by_id]
+
+
+async def find_recipe_ids_by_ingredients(
+    db: AsyncSession, ingredient_ids: Collection[int], *, limit: int
+) -> list[int]:
+    """Return the recipes that use the most of the given ingredients, best first.
+
+    Args:
+        db: Database session.
+        ingredient_ids: Ingredients the recipes should contain.
+        limit: Maximum number of recipe ids to return.
+
+    Returns:
+        Recipe ids ordered by the number of matching ingredients (ties by id).
+    """
+    if not ingredient_ids:
+        return []
+    matches = func.count(RecipeIngredient.ingredient_id)
+    result = await db.execute(
+        select(RecipeIngredient.recipe_id)
+        .where(RecipeIngredient.ingredient_id.in_(ingredient_ids))
+        .group_by(RecipeIngredient.recipe_id)
+        .order_by(matches.desc(), RecipeIngredient.recipe_id)
+        .limit(limit)
+    )
+    return list(result.scalars())
 
 
 async def get_recipe_ids(db: AsyncSession) -> list[int]:

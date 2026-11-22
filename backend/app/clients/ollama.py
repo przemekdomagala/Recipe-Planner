@@ -62,6 +62,7 @@ class OllamaClient:
         temperature: float = 0.2,
         think: bool = False,
         max_tokens: int | None = None,
+        json_max_tokens: int | None = None,
         timeout: float = 300.0,
         query_prefix: str = "",
         document_prefix: str = "",
@@ -80,6 +81,8 @@ class OllamaClient:
             temperature: Sampling temperature for chat.
             think: Enable the model's reasoning mode (ignored by models without one).
             max_tokens: Upper bound on generated tokens (`num_predict`); `None` = no limit.
+            json_max_tokens: Like `max_tokens`, for replies constrained to a JSON schema
+                (structured output is longer and truncation makes it unparseable).
             timeout: Read timeout in seconds (model loading can be slow).
             query_prefix: Text prepended to search queries before embedding.
             document_prefix: Text prepended to documents before embedding.
@@ -92,6 +95,7 @@ class OllamaClient:
         self._temperature = temperature
         self._think = think
         self._max_tokens = max_tokens
+        self._json_max_tokens = json_max_tokens
         self._query_prefix = query_prefix
         self._document_prefix = document_prefix
         self._batch_size = batch_size
@@ -124,6 +128,7 @@ class OllamaClient:
             temperature=config.llm_temperature,
             think=config.llm_think,
             max_tokens=config.llm_max_tokens,
+            json_max_tokens=config.llm_json_max_tokens,
             timeout=config.ollama_timeout_seconds,
             query_prefix=config.embedding_query_prefix,
             document_prefix=config.embedding_document_prefix,
@@ -162,24 +167,34 @@ class OllamaClient:
         """Close the underlying HTTP client."""
         await self._http.aclose()
 
-    async def chat(self, messages: Sequence[ChatMessage]) -> str:
+    async def chat(
+        self, messages: Sequence[ChatMessage], *, json_schema: dict[str, Any] | None = None
+    ) -> str:
         """Return the model's (non-streamed) reply to `messages`.
+
+        Args:
+            messages: The conversation so far.
+            json_schema: If given, sent as Ollama's `format` so the reply is JSON matching
+                the schema; `json_max_tokens` then replaces `max_tokens`.
 
         Raises:
             LLMUnavailableError: Ollama can't be reached or timed out.
             LLMModelNotFoundError: The chat model isn't installed.
             LLMResponseError: Ollama returned an error or an unexpected payload.
         """
+        max_tokens = self._json_max_tokens if json_schema is not None else self._max_tokens
         options: dict[str, float | int] = {"temperature": self._temperature}
-        if self._max_tokens is not None:
-            options["num_predict"] = self._max_tokens
-        payload = {
+        if max_tokens is not None:
+            options["num_predict"] = max_tokens
+        payload: dict[str, Any] = {
             "model": self._chat_model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": False,
             "think": self._think,
             "options": options,
         }
+        if json_schema is not None:
+            payload["format"] = json_schema
         body = await self._post("/api/chat", payload, model=self._chat_model)
         try:
             content = body["message"]["content"]

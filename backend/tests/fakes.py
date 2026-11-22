@@ -4,6 +4,7 @@ import hashlib
 import math
 import re
 from collections.abc import Sequence
+from typing import Any
 
 from app.core.config import settings
 from app.services.llm import ChatMessage
@@ -51,13 +52,20 @@ class FakeChatModel:
         """Create a model that always answers `reply`."""
         self.reply = reply
         self.received: list[list[ChatMessage]] = []
+        self.schemas: list[dict[str, Any] | None] = []
+        self.error: Exception | None = None
 
     @property
     def chat_model(self) -> str:
         """Model name reported in responses."""
         return "fake-chat"
 
-    async def chat(self, messages: Sequence[ChatMessage]) -> str:
-        """Record `messages` and return the canned reply."""
+    async def chat(
+        self, messages: Sequence[ChatMessage], *, json_schema: dict[str, Any] | None = None
+    ) -> str:
+        """Record the call, then raise `error` if set or return the canned reply."""
         self.received.append(list(messages))
+        self.schemas.append(json_schema)
+        if self.error is not None:
+            raise self.error
         return self.reply

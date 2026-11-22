@@ -6,7 +6,7 @@ Services depend on these protocols rather than on a concrete client, so the back
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 ChatRole = Literal["system", "user", "assistant"]
 
@@ -44,6 +44,13 @@ class ChatModel(Protocol):
         """Identifier of the chat model."""
         ...
 
-    async def chat(self, messages: Sequence[ChatMessage]) -> str:
-        """Return the assistant's reply to `messages`."""
+    async def chat(
+        self, messages: Sequence[ChatMessage], *, json_schema: dict[str, Any] | None = None
+    ) -> str:
+        """Return the assistant's reply to `messages`.
+
+        Args:
+            messages: The conversation so far.
+            json_schema: If given, the reply must be JSON matching this schema.
+        """
         ...

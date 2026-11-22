@@ -27,6 +27,11 @@ async def get_ingredients(
     return result.all()
 
 
+async def get_all_ingredients(db: AsyncSession) -> list[Ingredient]:
+    """Return every ingredient, ordered by name (the catalogue is small)."""
+    return list(await db.scalars(select(Ingredient).order_by(Ingredient.name)))
+
+
 async def create_ingredient(db: AsyncSession, data: IngredientCreate) -> Ingredient:
     """Insert a new ingredient.
 

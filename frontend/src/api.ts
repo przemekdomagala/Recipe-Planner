@@ -127,6 +127,116 @@ export interface AskResponse {
   sources: SearchHit[]
 }
 
+/** An ingredient in the fridge (`FridgeItemRead`). */
+export interface FridgeItem {
+  id: number
+  ingredient: Ingredient
+  quantity: number | null
+  unit: string | null
+  /** ISO date (`YYYY-MM-DD`). */
+  expires_on: string | null
+  added_at: string
+}
+
+/** Payload for adding an ingredient to the fridge (`FridgeItemCreate`). */
+export interface NewFridgeItem {
+  name: string
+  quantity?: number | null
+  unit?: string | null
+  expires_on?: string | null
+}
+
+/** Dietary constraints (`DietProfileData`). */
+export interface DietProfile {
+  diets: string[]
+  allergens: string[]
+  excluded_ingredients: string[]
+}
+
+/** A selectable diet or allergen (`LabeledOption` / `DietOption`). */
+export interface ProfileOption {
+  value: string
+  label: string
+  /** For diets: the ingredient properties the diet rules out. */
+  forbids?: string[]
+}
+
+/** The diets and allergens a profile can contain (`ProfileOptions`). */
+export interface ProfileOptions {
+  diets: ProfileOption[]
+  allergens: ProfileOption[]
+}
+
+/** An ingredient swap applied to a suggestion (`Substitution`). */
+export interface Substitution {
+  original: string
+  replacement: string
+  reason: string
+  /** `"llm"` if the model proposed it (and it passed validation), else `"rules"`. */
+  source: 'llm' | 'rules'
+}
+
+/** A recipe suggested for the fridge contents (`FridgeSuggestion`). */
+export interface FridgeSuggestion {
+  recipe_id: number
+  title: string
+  category: string | null
+  area: string | null
+  thumbnail_url: string | null
+  score: number
+  /** Share of the non-staple ingredients already at hand, 0 to 1. */
+  coverage: number
+  used_ingredients: string[]
+  missing_ingredients: string[]
+  expiring_used: string[]
+  substitutions: Substitution[]
+  unverified_ingredients: string[]
+  reason: string | null
+}
+
+/** Fridge suggestions and how they were produced (`SuggestionResponse`). */
+export interface SuggestionResponse {
+  suggestions: FridgeSuggestion[]
+  model: string | null
+  llm_used: boolean
+  notes: string[]
+}
+
+/** Options for {@link suggestRecipes} (`SuggestionRequest`). */
+export interface SuggestionOptions {
+  query?: string | null
+  limit?: number
+  max_missing?: number
+  use_llm?: boolean
+}
+
+/** Fetch the fridge contents, soonest expiry first. */
+export const listFridgeItems = (): Promise<FridgeItem[]> => request('/api/fridge/items')
+
+/** Put an ingredient into the fridge; unknown ingredients are created. */
+export const addFridgeItem = (item: NewFridgeItem): Promise<FridgeItem> =>
+  request('/api/fridge/items', { method: 'POST', body: JSON.stringify(item) })
+
+/** Remove an item from the fridge. */
+export async function deleteFridgeItem(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/api/fridge/items/${id}`, { method: 'DELETE' })
+  if (!response.ok) throw new Error(response.statusText)
+}
+
+/** Fetch the diet profile. */
+export const getProfile = (): Promise<DietProfile> => request('/api/profile')
+
+/** Replace the diet profile. */
+export const saveProfile = (profile: DietProfile): Promise<DietProfile> =>
+  request('/api/profile', { method: 'PUT', body: JSON.stringify(profile) })
+
+/** Fetch the supported diets and allergens. */
+export const getProfileOptions = (): Promise<ProfileOptions> => request('/api/profile/options')
+
+/** Suggest recipes for the stored fridge and diet profile. */
+export const suggestRecipes = (options: SuggestionOptions = {}): Promise<SuggestionResponse> =>
+  request('/api/fridge/suggestions', { method: 'POST', body: JSON.stringify(options) })
+
 /** Semantic recipe search over the knowledge base. */
 export const searchRecipes = (
   query: string,

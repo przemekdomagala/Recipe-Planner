@@ -1,10 +1,7 @@
 """Tests for the RAG assistant (`POST /api/assistant/ask`)."""
 
-from collections.abc import Sequence
-
 from app.core.exceptions import LLMModelNotFoundError
 from app.services.assistant import NO_MATCH_ANSWER
-from app.services.llm import ChatMessage
 from httpx import AsyncClient
 
 from tests.fakes import FakeChatModel
@@ -74,11 +71,7 @@ async def test_ask_reports_missing_model_as_503(
     """LLM errors are mapped to HTTP 503 with an actionable message."""
     await _create_recipe(client, "Ramen", "Boil noodles.")
 
-    async def missing(messages: Sequence[ChatMessage]) -> str:
-        """Simulate an uninstalled model."""
-        raise LLMModelNotFoundError("gemma4:31b")
-
-    chat_model.chat = missing  # type: ignore[method-assign]
+    chat_model.error = LLMModelNotFoundError("gemma4:31b")
 
     response = await client.post("/api/assistant/ask", json={"question": "ramen?"})
 

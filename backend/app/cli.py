@@ -6,6 +6,7 @@ Usage (from `backend/`, or `docker compose exec backend python -m app.cli ...`):
     uv run python -m app.cli ingest-mealdb --letters ab # only meals starting with a/b
     uv run python -m app.cli reindex [--force]          # (re)embed stale or all recipes
     uv run python -m app.cli llm-status                 # check the Ollama connection
+    uv run python -m app.cli unclassified               # ingredients the diet rules don't know
 """
 
 import argparse
@@ -16,9 +17,11 @@ import sys
 from app.clients.ollama import OllamaClient
 from app.clients.themealdb import ALL_LETTERS, TheMealDBClient
 from app.core.exceptions import LLMError, RecipeSourceError
+from app.crud.ingredient import get_all_ingredients
 from app.db.session import AsyncSessionLocal, init_db
 from app.services.indexing import reindex_recipes
 from app.services.ingestion import ingest_recipes
+from app.services.taxonomy import classify
 
 
 def _progress(done: int, total: int) -> None:
@@ -50,6 +53,15 @@ async def _reindex(force: bool) -> None:
     print(f"(Re)indexed {report.indexed}, already up to date {report.unchanged}")
 
 
+async def _unclassified() -> None:
+    """Print the stored ingredients that no taxonomy rule recognises."""
+    await init_db()
+    async with AsyncSessionLocal() as db:
+        names = [i.name for i in await get_all_ingredients(db) if not classify(i.name).known]
+    print("\n".join(names))
+    print(f"{len(names)} ingredient(s) the dietary checker can't verify", file=sys.stderr)
+
+
 async def _llm_status() -> None:
     """Print the chat and embedding server status."""
     async with OllamaClient.for_chat() as chat, OllamaClient.for_embeddings() as embeddings:
@@ -73,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     reindex.add_argument("--force", action="store_true", help="re-embed every recipe")
 
     commands.add_parser("llm-status", help="check the Ollama servers and models")
+    commands.add_parser("unclassified", help="list ingredients the dietary rules don't know")
 
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -81,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
             asyncio.run(_ingest_mealdb(args.letters, args.limit, args.force))
         elif args.command == "reindex":
             asyncio.run(_reindex(args.force))
+        elif args.command == "unclassified":
+            asyncio.run(_unclassified())
         else:
             asyncio.run(_llm_status())
     except (LLMError, RecipeSourceError) as exc:

@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Hard cap on answer length in tokens (Ollama `num_predict`); small models ramble, and on
     # CPU every token costs time.
     llm_max_tokens: int = Field(default=350, gt=0)
+    # Token cap for structured (JSON) replies, e.g. the fridge ranking.
+    llm_json_max_tokens: int = Field(default=900, gt=0)
     # Embedding model; `embedding_dim` must match its output size and be set before the
     # `recipe_chunks` table is first created (768 = nomic-embed-text).
     embedding_model: str = "nomic-embed-text"
@@ -54,6 +56,14 @@ class Settings(BaseSettings):
     chunk_max_chars: int = Field(default=1000, ge=200)
     # Chunks fetched per requested recipe before grouping by recipe.
     search_candidates_per_hit: int = Field(default=4, ge=1)
+
+    # --- Fridge suggestions --------------------------------------------------------------
+    # Recipes fetched by ingredient overlap before scoring.
+    fridge_candidate_pool: int = Field(default=60, ge=1)
+    # Best-scored recipes the LLM gets to rank and adapt (keeps the prompt small).
+    fridge_llm_candidates: int = Field(default=6, ge=1, le=12)
+    # Items expiring within this many days count as "use soon".
+    fridge_expiring_days: int = Field(default=3, ge=0)
 
     # --- Data sources -------------------------------------------------------------------
     # "1" is TheMealDB's public test key.

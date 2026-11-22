@@ -81,6 +81,34 @@ async def test_no_auth_header_without_key() -> None:
     assert "Authorization" not in seen[0].headers
 
 
+async def test_chat_with_json_schema_sets_format() -> None:
+    """A JSON schema is sent as `format`, with the structured-output token cap."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Record the request and answer with JSON."""
+        seen.append(request)
+        return httpx.Response(200, json={"message": {"content": '{"ok": true}'}})
+
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    client = OllamaClient(
+        base_url="http://localhost:11434",
+        chat_model="m",
+        embedding_model="e",
+        embedding_dim=3,
+        max_tokens=200,
+        json_max_tokens=900,
+        transport=httpx.MockTransport(handler),
+    )
+    async with client:
+        reply = await client.chat([ChatMessage("user", "x")], json_schema=schema)
+
+    assert reply == '{"ok": true}'
+    body = json.loads(seen[0].content)
+    assert body["format"] == schema
+    assert body["options"]["num_predict"] == 900
+
+
 async def test_embed_documents_batches_and_prefixes() -> None:
     """Documents are prefixed and sent in batches; vectors come back in order."""
     batches: list[list[str]] = []
