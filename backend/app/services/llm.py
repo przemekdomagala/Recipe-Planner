@@ -4,9 +4,9 @@ Services depend on these protocols rather than on a concrete client, so the back
 (currently Ollama) can be swapped and tests can plug in deterministic fakes.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 ChatRole = Literal["system", "user", "assistant"]
 
@@ -44,6 +44,19 @@ class ChatModel(Protocol):
         """Identifier of the chat model."""
         ...
 
-    async def chat(self, messages: Sequence[ChatMessage]) -> str:
-        """Return the assistant's reply to `messages`."""
+    async def chat(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        json_schema: Mapping[str, Any] | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        """Return the assistant's reply to `messages`.
+
+        Args:
+            messages: The conversation so far.
+            json_schema: Constrain the reply to JSON matching this schema (structured output).
+                The caller still validates the reply: small models may not comply.
+            max_tokens: Override the model's default cap on generated tokens.
+        """
         ...

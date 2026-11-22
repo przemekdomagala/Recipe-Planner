@@ -4,7 +4,7 @@ Implements the `Embedder` and `ChatModel` protocols from `app.services.llm`.
 See https://docs.ollama.com/api for the endpoints used here.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import TracebackType
 from typing import Any, Self
 
@@ -162,8 +162,19 @@ class OllamaClient:
         """Close the underlying HTTP client."""
         await self._http.aclose()
 
-    async def chat(self, messages: Sequence[ChatMessage]) -> str:
+    async def chat(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        json_schema: Mapping[str, Any] | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         """Return the model's (non-streamed) reply to `messages`.
+
+        Args:
+            messages: The conversation so far.
+            json_schema: JSON schema sent as Ollama's `format` (structured outputs).
+            max_tokens: Overrides the client's `max_tokens` for this call.
 
         Raises:
             LLMUnavailableError: Ollama can't be reached or timed out.
@@ -171,15 +182,18 @@ class OllamaClient:
             LLMResponseError: Ollama returned an error or an unexpected payload.
         """
         options: dict[str, float | int] = {"temperature": self._temperature}
-        if self._max_tokens is not None:
-            options["num_predict"] = self._max_tokens
-        payload = {
+        token_cap = max_tokens if max_tokens is not None else self._max_tokens
+        if token_cap is not None:
+            options["num_predict"] = token_cap
+        payload: dict[str, Any] = {
             "model": self._chat_model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": False,
             "think": self._think,
             "options": options,
         }
+        if json_schema is not None:
+            payload["format"] = dict(json_schema)
         body = await self._post("/api/chat", payload, model=self._chat_model)
         try:
             content = body["message"]["content"]
