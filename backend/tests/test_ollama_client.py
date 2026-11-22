@@ -59,6 +59,40 @@ async def test_chat_sends_auth_and_returns_content() -> None:
     assert body["messages"] == [{"role": "user", "content": "Hello"}]
 
 
+async def test_chat_sends_json_schema_and_token_override() -> None:
+    """Structured output goes out as Ollama's `format`; `max_tokens` overrides the default."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Record the request and answer with JSON."""
+        seen.append(request)
+        return httpx.Response(200, json={"message": {"content": '{"ok": true}'}})
+
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    async with make_client(handler) as client:
+        reply = await client.chat([ChatMessage("user", "x")], json_schema=schema, max_tokens=900)
+
+    assert reply == '{"ok": true}'
+    body = json.loads(seen[0].content)
+    assert body["format"] == schema
+    assert body["options"]["num_predict"] == 900
+
+
+async def test_chat_without_schema_sends_no_format() -> None:
+    """Plain chat leaves `format` out, so the model answers in free text."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Record the request."""
+        seen.append(request)
+        return httpx.Response(200, json={"message": {"content": "ok"}})
+
+    async with make_client(handler) as client:
+        await client.chat([ChatMessage("user", "x")])
+
+    assert "format" not in json.loads(seen[0].content)
+
+
 async def test_no_auth_header_without_key() -> None:
     """A local server (no key) gets no Authorization header."""
     seen: list[httpx.Request] = []

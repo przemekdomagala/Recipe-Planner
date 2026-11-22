@@ -3,7 +3,8 @@
 import hashlib
 import math
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from app.core.config import settings
 from app.services.llm import ChatMessage
@@ -45,19 +46,39 @@ class FakeEmbedder:
 
 
 class FakeChatModel:
-    """Chat model that records the conversation and returns a canned reply."""
+    """Chat model that records the conversation and returns a canned reply.
 
-    def __init__(self, reply: str = "Try the Teriyaki Chicken Casserole [1].") -> None:
-        """Create a model that always answers `reply`."""
+    `reply` may also be a function of the messages, for replies that depend on the prompt.
+    Set `error` to make every call raise it instead (e.g. a missing model).
+    """
+
+    def __init__(
+        self,
+        reply: str | Callable[[Sequence[ChatMessage]], str] = (
+            "Try the Teriyaki Chicken Casserole [1]."
+        ),
+    ) -> None:
+        """Create a model that answers `reply`."""
         self.reply = reply
+        self.error: Exception | None = None
         self.received: list[list[ChatMessage]] = []
+        self.schemas: list[Mapping[str, Any] | None] = []
 
     @property
     def chat_model(self) -> str:
         """Model name reported in responses."""
         return "fake-chat"
 
-    async def chat(self, messages: Sequence[ChatMessage]) -> str:
-        """Record `messages` and return the canned reply."""
+    async def chat(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        json_schema: Mapping[str, Any] | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        """Record `messages` and the requested schema, then return the canned reply."""
         self.received.append(list(messages))
-        return self.reply
+        self.schemas.append(json_schema)
+        if self.error is not None:
+            raise self.error
+        return self.reply if isinstance(self.reply, str) else self.reply(messages)

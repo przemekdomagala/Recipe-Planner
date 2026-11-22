@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter
 
-from app.api.routers import assistant, ingredients, recipes
+from app.api.routers import assistant, fridge, ingredients, recipes
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(ingredients.router)
 api_router.include_router(recipes.router)
 api_router.include_router(assistant.router)
+api_router.include_router(fridge.router)

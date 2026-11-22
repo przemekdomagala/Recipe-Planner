@@ -1,1 +1,1 @@
-"""Business logic: RAG pipeline (chunking, indexing, search), ingestion and the assistant."""
+"""Business logic: RAG pipeline, ingestion, the assistant and fridge suggestions."""

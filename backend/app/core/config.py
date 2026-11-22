@@ -55,6 +55,16 @@ class Settings(BaseSettings):
     # Chunks fetched per requested recipe before grouping by recipe.
     search_candidates_per_hit: int = Field(default=4, ge=1)
 
+    # --- Fridge suggestions -------------------------------------------------------------
+    # Recipes retrieved for a fridge before constraint checks and ranking.
+    fridge_candidate_pool: int = Field(default=12, ge=1, le=50)
+    # Best candidates put into the LLM prompt (keeps prompt processing fast on CPU).
+    fridge_context_recipes: int = Field(default=6, ge=1, le=12)
+    # Candidates with more conflicting ingredients than this aren't worth adapting.
+    fridge_max_conflicts: int = Field(default=2, ge=0)
+    # Token cap for the structured (JSON) suggestions reply.
+    fridge_max_tokens: int = Field(default=1200, gt=0)
+
     # --- Data sources -------------------------------------------------------------------
     # "1" is TheMealDB's public test key.
     themealdb_base_url: str = "https://www.themealdb.com/api/json/v1/1"

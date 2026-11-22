@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listIngredients, listRecipes, type Ingredient, type Recipe } from './api'
 import { AssistantPanel } from './components/AssistantPanel'
+import { FridgePanel } from './components/FridgePanel'
 import { IngredientForm } from './components/IngredientForm'
 import { RecipeForm } from './components/RecipeForm'
 import { RecipeList } from './components/RecipeList'
@@ -36,6 +37,7 @@ function App() {
     <main>
       <h1>Recipe Planner</h1>
       {error && <p className="error">Backend error: {error}</p>}
+      <FridgePanel />
       <AssistantPanel />
       <div className="grid">
         <div>
